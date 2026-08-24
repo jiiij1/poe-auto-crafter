@@ -1,0 +1,48 @@
+{
+  "__selected_workflow__": "测试流程",
+  "workflows": {
+    "新流程_2": {
+      "start_node": "",
+      "max_node_exec": 200,
+      "nodes": {}
+    },
+    "测试流程": {
+      "start_node": "node_1",
+      "nodes": {
+        "node_1": {
+          "x": 140.0,
+          "y": 48.0,
+          "name": "节点1",
+          "action": "改造",
+          "rule": "测试规则1",
+          "success": "node_2",
+          "failure": "node_1",
+          "max_attempts": 9999,
+          "max_reached": "end"
+        },
+        "node_2": {
+          "x": 178.0,
+          "y": 224.0,
+          "name": "节点2",
+          "action": "重铸点金",
+          "rule": "测试规则2",
+          "success": "node_3",
+          "failure": "node_2",
+          "max_attempts": 9999,
+          "max_reached": "end"
+        },
+        "node_3": {
+          "x": 202.0,
+          "y": 404.0,
+          "name": "节点3",
+          "action": "测试混沌",
+          "rule": "测试规则3",
+          "success": "end",
+          "failure": "node_1",
+          "max_attempts": 9999,
+          "max_reached": "end"
+        }
+      }
+    }
+  }
+}

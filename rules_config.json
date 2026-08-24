@@ -1,0 +1,69 @@
+{
+  "__selected_rule__": "测试规则3",
+  "默认规则": {
+    "blue_rules": [
+      "导师",
+      "塑焰",
+      "雷手的"
+    ],
+    "red_rules": [],
+    "min_blue_match": 1,
+    "max_attempts": 20000,
+    "action_name": "改造",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "shift",
+      "c"
+    ],
+    "name": "默认规则"
+  },
+  "测试规则1": {
+    "blue_rules": [
+      "暴击伤害"
+    ],
+    "red_rules": [],
+    "min_blue_match": 1,
+    "max_attempts": 200,
+    "action_name": "改造",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "shift",
+      "c"
+    ],
+    "name": "测试规则1"
+  },
+  "测试规则2": {
+    "blue_rules": [
+      "火焰"
+    ],
+    "red_rules": [],
+    "min_blue_match": 1,
+    "max_attempts": 200,
+    "action_name": "重铸点金",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "shift",
+      "c"
+    ],
+    "name": "测试规则2"
+  },
+  "测试规则3": {
+    "blue_rules": [],
+    "red_rules": [
+      "闪电"
+    ],
+    "min_blue_match": 0,
+    "max_attempts": 200,
+    "action_name": "测试混沌",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "shift",
+      "c"
+    ],
+    "name": "测试规则3"
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "hotkey": "F10",
+  "mouse_position_hotkey": "F9",
+  "copy_hotkey": [
+    "ctrl",
+    "shift",
+    "c"
+  ],
+  "actions": {
+    "改造": [
+      {
+        "type": "moveTo",
+        "x": 110,
+        "y": 270
+      },
+      {
+        "type": "click",
+        "button": "right"
+      },
+      {
+        "type": "sleep",
+        "time": 0.034
+      },
+      {
+        "type": "moveTo",
+        "x": 330,
+        "y": 440
+      },
+      {
+        "type": "click",
+        "button": "left"
+      },
+      {
+        "type": "sleep",
+        "time": 0.034
+      }
+    ],
+    "重铸点金": [
+      {
+        "type": "moveTo",
+        "x": 436,
+        "y": 396
+      },
+      {
+        "type": "click",
+        "button": "right"
+      },
+      {
+        "type": "sleep",
+        "time": 0.05
+      },
+      {
+        "type": "moveTo",
+        "x": 350,
+        "y": 470
+      },
+      {
+        "type": "click",
+        "button": "left"
+      },
+      {
+        "type": "sleep",
+        "time": 0.05
+      },
+      {
+        "type": "moveTo",
+        "x": 498,
+        "y": 278
+      },
+      {
+        "type": "click",
+        "button": "right"
+      },
+      {
+        "type": "sleep",
+        "time": 0.05
+      },
+      {
+        "type": "moveTo",
+        "x": 342,
+        "y": 450
+      },
+      {
+        "type": "click",
+        "button": "left"
+      },
+      {
+        "type": "sleep",
+        "time": 0.05
+      }
+    ],
+    "测试重铸": [
+      {
+        "type": "moveTo",
+        "x": 438,
+        "y": 406
+      },
+      {
+        "type": "click",
+        "button": "right"
+      },
+      {
+        "type": "sleep",
+        "time": 0.05
+      },
+      {
+        "type": "moveTo",
+        "x": 330,
+        "y": 468
+      },
+      {
+        "type": "click",
+        "button": "left"
+      },
+      {
+        "type": "sleep",
+        "time": 0.05
+      }
+    ],
+    "测试混沌": [
+      {
+        "type": "moveTo",
+        "x": 552,
+        "y": 272
+      },
+      {
+        "type": "click",
+        "button": "right"
+      },
+      {
+        "type": "sleep",
+        "time": 0.05
+      },
+      {
+        "type": "moveTo",
+        "x": 330,
+        "y": 468
+      },
+      {
+        "type": "click",
+        "button": "left"
+      },
+      {
+        "type": "sleep",
+        "time": 0.05
+      }
+    ]
+  }
+}
