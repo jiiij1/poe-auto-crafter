@@ -55,17 +55,17 @@ META_KEY = "__selected_rule__"
 DEFAULT_CONFIG = {
     "hotkey": "F10",
     "mouse_position_hotkey": "F9",
-    "copy_hotkey": ["ctrl", "shift", "c"],
+    "copy_hotkey": ["ctrl", "c"],
 
     # 剪贴板与性能优化配置
     "copy_backend": "keyboard",       # 发送复制快捷键的后端：keyboard / pyautogui
-    "copy_timeout": 0.6,              # 单次等待剪贴板变化超时（秒）
+    "copy_timeout": 0.067,              # 单次等待剪贴板变化超时（秒）
     "copy_poll_interval": 0.005,      # 剪贴板轮询间隔（秒）
     "copy_retry": 3,                  # 复制失败重试次数
-    "pre_copy_delay": 0.02,           # 发送复制快捷键前稳定等待（秒）
-    "post_action_delay": 0.034,        # 动作执行后稳定等待（秒）
-    "post_drop_delay": 0.034,          # 左键放下装备后稳定等待（秒）
-    "read_failure_threshold": 1.0,    # 判定长时间读取不到剪贴板的阈值（秒）
+    "pre_copy_delay": 0.01,           # 发送复制快捷键前稳定等待（秒）
+    "post_action_delay": 0.01,        # 动作执行后稳定等待（秒）
+    "post_drop_delay": 0.02,          # 左键放下装备后稳定等待（秒）
+    "read_failure_threshold": 0.167,    # 判定长时间读取不到剪贴板的阈值（秒）
     "log_every": 10,                  # 每 N 次循环输出一次非关键日志
     "verbose_log": False,             # 是否输出详细日志
 
@@ -110,7 +110,9 @@ DEFAULT_RULES_DATA = {
         "max_attempts": 200,
         "action_name": "改造",
         "dry_run": False,
-        "copy_hotkey": ["ctrl", "shift", "c"]
+        "copy_hotkey": ["ctrl", "c"],
+        "affix_count_enabled": False,
+        "affix_count": 3
     }
 }
 
@@ -324,13 +326,12 @@ def parse_simple_action_to_steps(text):
             step = {
                 "type": "moveTo",
                 "x": x,
-                "y": y
+                "y": y,
+                "duration": 0
             }
 
             if len(args) >= 3:
-                duration = to_number(args[2])
-                if float(duration) != 0:
-                    step["duration"] = duration
+                step["duration"] = to_number(args[2])
 
             steps.append(step)
 
@@ -642,7 +643,7 @@ def normalize_hotkey_keys(keys):
     """
     支持：
     "ctrl+shift+c"
-    ["ctrl", "shift", "c"]
+    ["ctrl", "c"]
     "ctrl shift c"
     """
     if isinstance(keys, str):
@@ -715,7 +716,7 @@ def send_copy_hotkey(copy_hotkey=None, backend="keyboard"):
     发送复制快捷键。
     优先使用 keyboard 库，通常比 pyautogui.hotkey 更适合游戏。
     """
-    copy_hotkey = copy_hotkey or DEFAULT_CONFIG.get("copy_hotkey", ["ctrl", "shift", "c"])
+    copy_hotkey = copy_hotkey or DEFAULT_CONFIG.get("copy_hotkey", ["ctrl", "c"])
     keys = normalize_hotkey_keys(copy_hotkey)
 
     if not keys:
@@ -799,6 +800,7 @@ def match_rules(clipboard_text, rules):
     """
     蓝色词条：至少匹配 min_blue_match 条。
     红色词条：必须全部包含。
+    词缀数量：开启时，前缀+后缀数量必须等于指定值。
     """
     lines = split_lines(clipboard_text or "")
 
@@ -820,14 +822,27 @@ def match_rules(clipboard_text, rules):
     blue_ok = len(blue_matched) >= min_blue_match
     red_ok = len(red_missing) == 0
 
+    # 词缀数量匹配
+    affix_count_enabled = bool(rules.get("affix_count_enabled", False))
+    affix_count_target = int(rules.get("affix_count", 3))
+    full_text = clipboard_text or ""
+    prefix_count = full_text.count("前缀")
+    suffix_count = full_text.count("后缀")
+    affix_total = prefix_count + suffix_count
+    affix_ok = (affix_total == affix_count_target) if affix_count_enabled else True
+
     return {
-        "success": blue_ok and red_ok,
+        "success": blue_ok and red_ok and affix_ok,
         "blue_ok": blue_ok,
         "red_ok": red_ok,
+        "affix_ok": affix_ok,
         "blue_matched": blue_matched,
         "red_missing": red_missing,
         "blue_count": len(blue_matched),
         "min_blue_match": min_blue_match,
+        "affix_count_enabled": affix_count_enabled,
+        "affix_count": affix_total,
+        "affix_count_target": affix_count_target,
     }
 
 
@@ -940,11 +955,10 @@ class PoeClipboardMakerApp:
         row2.pack(fill="x", padx=6, pady=2)
 
         ttk.Button(row2, text="新建规则", command=self.new_rule).pack(side="left", padx=3)
-        ttk.Button(row2, text="保存规则", command=self.save_current_rule).pack(side="left", padx=3)
+        tk.Button(row2, text="保存规则", command=self._save_and_reload_rules, bg="#d4edda", activebackground="#c3e6cb").pack(side="left", padx=3)
         ttk.Button(row2, text="删除规则", command=self.delete_current_rule).pack(side="left", padx=3)
         ttk.Button(row2, text="导入规则", command=self.import_rules_file).pack(side="left", padx=3)
         ttk.Button(row2, text="导出当前规则", command=self.export_current_rule).pack(side="left", padx=3)
-        ttk.Button(row2, text="重载规则文件", command=self.reload_rules_file).pack(side="left", padx=3)
 
         ttk.Label(
             rule_scheme_frame,
@@ -1015,6 +1029,13 @@ class PoeClipboardMakerApp:
         self.max_attempts_entry = ttk.Entry(x_frame, width=8)
         self.max_attempts_entry.pack(side="left")
 
+        ttk.Label(x_frame, text="    词缀数量:").pack(side="left", padx=(16, 4))
+        self.affix_count_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(x_frame, text="启用", variable=self.affix_count_var).pack(side="left")
+        self.affix_count_entry = ttk.Entry(x_frame, width=6)
+        self.affix_count_entry.insert(0, "3")
+        self.affix_count_entry.pack(side="left", padx=4)
+
         # ==================== 动作配置 ====================
         action_frame = ttk.LabelFrame(parent, text="动作配置（简化脚本编辑）")
         action_frame.pack(fill="both", expand=True, padx=8, pady=6)
@@ -1033,9 +1054,8 @@ class PoeClipboardMakerApp:
         self.action_name_entry = ttk.Entry(action_top, width=18)
         self.action_name_entry.pack(side="left", padx=4)
 
-        ttk.Button(action_top, text="保存", command=self.save_current_action).pack(side="left", padx=3)
+        tk.Button(action_top, text="保存", command=self._save_and_reload_action, bg="#d4edda", activebackground="#c3e6cb").pack(side="left", padx=3)
         ttk.Button(action_top, text="删除", command=self.delete_current_action).pack(side="left", padx=3)
-        ttk.Button(action_top, text="重载配置", command=self.reload_config).pack(side="left", padx=3)
 
         # ==================== 鼠标取点 ====================
         mouse_frame = ttk.Frame(action_frame)
@@ -1230,14 +1250,13 @@ class PoeClipboardMakerApp:
         wf_btn_row = ttk.Frame(wf_list_frame)
         wf_btn_row.pack(fill="x", padx=4, pady=2)
         ttk.Button(wf_btn_row, text="新建", width=8, command=self._wf_new).pack(side="left", padx=2)
-        ttk.Button(wf_btn_row, text="保存", width=8, command=self._wf_save).pack(side="left", padx=2)
+        tk.Button(wf_btn_row, text="保存", width=8, command=self._save_and_reload_workflow, bg="#d4edda", activebackground="#c3e6cb").pack(side="left", padx=2)
         ttk.Button(wf_btn_row, text="删除", width=8, command=self._wf_delete).pack(side="left", padx=2)
 
         wf_btn_row2 = ttk.Frame(wf_list_frame)
         wf_btn_row2.pack(fill="x", padx=4, pady=2)
         ttk.Button(wf_btn_row2, text="导入", width=8, command=self._wf_import).pack(side="left", padx=2)
         ttk.Button(wf_btn_row2, text="导出", width=8, command=self._wf_export).pack(side="left", padx=2)
-        ttk.Button(wf_btn_row2, text="重载", width=8, command=self._wf_reload).pack(side="left", padx=2)
 
         # 流程名称
         wf_name_frame = ttk.LabelFrame(left_panel, text="流程名称")
@@ -1326,15 +1345,6 @@ class PoeClipboardMakerApp:
 
         # 右键菜单
         self.wf_context_menu = tk.Menu(self.wf_canvas, tearoff=0)
-        self.wf_context_menu.add_command(label="编辑节点", command=self._wf_ctx_edit)
-        self.wf_context_menu.add_command(label="复制节点", command=self._wf_ctx_copy)
-        self.wf_context_menu.add_command(label="删除节点", command=self._wf_ctx_delete)
-        self.wf_context_menu.add_separator()
-        self.wf_context_menu.add_command(label="设为开始节点", command=self._wf_ctx_set_start)
-        self.wf_context_menu.add_separator()
-        self.wf_context_menu.add_command(label="从成功端口连接", command=lambda: self._wf_ctx_connect("success"))
-        self.wf_context_menu.add_command(label="从失败端口连接", command=lambda: self._wf_ctx_connect("failure"))
-        self.wf_context_menu.add_command(label="从次数耗尽端口连接", command=lambda: self._wf_ctx_connect("max_reached"))
 
         # 初始化流程列表
         self._refresh_workflow_list()
@@ -1482,6 +1492,11 @@ class PoeClipboardMakerApp:
         except ValueError:
             max_attempts = 200
 
+        try:
+            affix_count = int(self.affix_count_entry.get().strip() or 3)
+        except ValueError:
+            affix_count = 3
+
         return {
             "blue_rules": self.get_entry_values(self.blue_entries),
             "red_rules": self.get_entry_values(self.red_entries),
@@ -1490,6 +1505,8 @@ class PoeClipboardMakerApp:
             "action_name": self.action_selector.get().strip(),
             "dry_run": bool(self.dry_run_var.get()),
             "copy_hotkey": self.config.get("copy_hotkey", DEFAULT_CONFIG["copy_hotkey"]),
+            "affix_count_enabled": bool(self.affix_count_var.get()),
+            "affix_count": affix_count,
         }
 
     # ==================== 多套规则方案 ====================
@@ -1583,6 +1600,10 @@ class PoeClipboardMakerApp:
 
         self.dry_run_var.set(bool(rule.get("dry_run", False)))
 
+        self.affix_count_var.set(bool(rule.get("affix_count_enabled", False)))
+        self.affix_count_entry.delete(0, tk.END)
+        self.affix_count_entry.insert(0, str(rule.get("affix_count", 3)))
+
         action_name = rule.get("action_name", "")
         if action_name in self.config.get("actions", {}):
             self.action_selector.set(action_name)
@@ -1639,6 +1660,10 @@ class PoeClipboardMakerApp:
             self.append_log(f"规则已保存: {name}")
         else:
             messagebox.showerror("错误", "保存规则失败")
+
+    def _save_and_reload_rules(self):
+        self.save_current_rule()
+        self.reload_rules_file()
 
     def delete_current_rule(self):
         name = (
@@ -1881,8 +1906,8 @@ class PoeClipboardMakerApp:
 
         lines = [
             f"moveTo {format_number(x)},{format_number(y)}",
-            "click right",
-            "sleep 0.05"
+            "sleep 0.05",
+            "click right"
         ]
 
         self._append_simple_lines(lines)
@@ -1897,8 +1922,8 @@ class PoeClipboardMakerApp:
 
         lines = [
             f"moveTo {format_number(x)},{format_number(y)}",
-            "click left",
-            "sleep 0.05"
+            "sleep 0.05",
+            "click left"
         ]
 
         self._append_simple_lines(lines)
@@ -2086,6 +2111,10 @@ class PoeClipboardMakerApp:
         else:
             messagebox.showerror("错误", "保存动作配置失败")
 
+    def _save_and_reload_action(self):
+        self.save_current_action()
+        self.reload_config()
+
     def delete_current_action(self):
         name = self.action_selector.get().strip()
 
@@ -2227,18 +2256,18 @@ class PoeClipboardMakerApp:
         )
 
         # 读取优化配置（向后兼容，旧配置没有这些字段时使用默认值）
-        copy_timeout = float(self.config.get("copy_timeout", 0.6))
+        copy_timeout = float(self.config.get("copy_timeout", 0.067))
         copy_poll_interval = float(self.config.get("copy_poll_interval", 0.005))
         copy_retry = int(self.config.get("copy_retry", 3))
         copy_backend = self.config.get("copy_backend", "keyboard")
 
         pre_copy_delay = float(self.config.get("pre_copy_delay", 0.02))
-        post_action_delay = float(self.config.get("post_action_delay", 0.08))
-        post_drop_delay = float(self.config.get("post_drop_delay", 0.08))
+        post_action_delay = float(self.config.get("post_action_delay", 0.034))
+        post_drop_delay = float(self.config.get("post_drop_delay", 0.034))
 
         log_every = int(self.config.get("log_every", 10))
         verbose_log = bool(self.config.get("verbose_log", False))
-        read_failure_threshold = float(self.config.get("read_failure_threshold", 1.0))
+        read_failure_threshold = float(self.config.get("read_failure_threshold", 0.167))
 
         try:
             while self.is_running():
@@ -2321,17 +2350,20 @@ class PoeClipboardMakerApp:
                     self.ui_queue.put((
                         "log",
                         f"匹配成功: 蓝色 {result['blue_count']}/{result['min_blue_match']}，"
-                        f"红色全部满足，匹配耗时 {match_cost:.4f}s"
+                        f"红色全部满足"
+                        + (f"，词缀 {result['affix_count']}/{result['affix_count_target']}" if result['affix_count_enabled'] else "")
+                        + f"，匹配耗时 {match_cost:.4f}s"
                     ))
                     self.ui_queue.put(("success", clipboard_text))
                     break
 
                 if verbose_log or attempt == 1 or attempt % log_every == 0:
+                    affix_log = f"，词缀 {result['affix_count']}/{result['affix_count_target']}" if result['affix_count_enabled'] else ""
                     self.ui_queue.put((
                         "log",
                         f"第 {attempt} 次匹配失败: "
                         f"蓝色 {result['blue_count']}/{result['min_blue_match']}，"
-                        f"红色缺失={result['red_missing']}，"
+                        f"红色缺失={result['red_missing']}{affix_log}，"
                         f"剪贴板耗时 {copy_cost:.3f}s，匹配耗时 {match_cost:.4f}s"
                     ))
 
@@ -2441,6 +2473,12 @@ class PoeClipboardMakerApp:
         )
         self.append_log(f"蓝色命中: {result['blue_matched']}")
         self.append_log(f"红色缺失: {result['red_missing']}")
+        if result['affix_count_enabled']:
+            self.append_log(f"词缀数量: {result['affix_count']}/{result['affix_count_target']} {'✓' if result['affix_ok'] else '✗'}")
+
+        affix_info = ""
+        if result['affix_count_enabled']:
+            affix_info = f"词缀数量: {result['affix_count']}/{result['affix_count_target']} {'✓' if result['affix_ok'] else '✗'}\n"
 
         messagebox.showinfo(
             "匹配测试",
@@ -2448,7 +2486,8 @@ class PoeClipboardMakerApp:
             f"结果: {'成功' if result['success'] else '失败'}\n"
             f"蓝色: {result['blue_count']}/{result['min_blue_match']}\n"
             f"蓝色命中: {', '.join(result['blue_matched']) or '无'}\n"
-            f"红色缺失: {', '.join(result['red_missing']) or '无'}\n\n"
+            f"红色缺失: {', '.join(result['red_missing']) or '无'}\n"
+            f"{affix_info}\n"
             f"剪贴板预览:\n{text[:500]}"
         )
 
@@ -2534,17 +2573,24 @@ class PoeClipboardMakerApp:
                     "y": ndata.get("y", 100),
                 }
             else:
-                self.wf_nodes[nid] = {
+                node = {
                     "name": ndata.get("name", nid),
                     "action": ndata.get("action", ""),
-                    "rule": ndata.get("rule", ""),
-                    "success": ndata.get("success", ""),
                     "failure": ndata.get("failure", ""),
                     "max_attempts": int(ndata.get("max_attempts", 9999)),
                     "max_reached": ndata.get("max_reached", "end"),
                     "x": ndata.get("x", 100),
                     "y": ndata.get("y", 100),
                 }
+                # 新格式：rules 列表
+                if "rules" in ndata and isinstance(ndata["rules"], list):
+                    node["rules"] = ndata["rules"]
+                else:
+                    # 旧格式兼容：单 rule 转为 rules 列表
+                    rule = ndata.get("rule", "")
+                    success = ndata.get("success", "")
+                    node["rules"] = [{"rule": rule, "success": success}] if rule else []
+                self.wf_nodes[nid] = node
 
         self.wf_node_counter = 0
         for nid in self.wf_nodes:
@@ -2592,8 +2638,7 @@ class PoeClipboardMakerApp:
             else:
                 entry["name"] = nd.get("name", nid)
                 entry["action"] = nd.get("action", "")
-                entry["rule"] = nd.get("rule", "")
-                entry["success"] = nd.get("success", "")
+                entry["rules"] = self._wf_get_rules(nd)
                 entry["failure"] = nd.get("failure", "")
                 entry["max_attempts"] = int(nd.get("max_attempts", 9999))
                 entry["max_reached"] = nd.get("max_reached", "end")
@@ -2618,6 +2663,10 @@ class PoeClipboardMakerApp:
             self._wf_append_log(f"流程已保存: {name}")
         else:
             messagebox.showerror("错误", "保存流程失败")
+
+    def _save_and_reload_workflow(self):
+        self._wf_save()
+        self._wf_reload()
 
     def _wf_delete(self):
         name = self.wf_selector.get().strip()
@@ -2721,6 +2770,26 @@ class PoeClipboardMakerApp:
     NODE_H_ACTION = 120
     NODE_H_END = 50
     PORT_R = 6
+    NODE_RULE_H = 25  # 每条规则额外高度
+
+    def _wf_get_rules(self, nd):
+        """获取节点的规则列表，兼容旧格式"""
+        if "rules" in nd and isinstance(nd["rules"], list):
+            return nd["rules"]
+        # 旧格式兼容：单 rule 字段转为 rules 列表
+        rule = nd.get("rule", "")
+        success = nd.get("success", "")
+        if rule:
+            return [{"rule": rule, "success": success}]
+        return []
+
+    def _wf_node_height(self, nd):
+        """根据规则数量计算节点高度"""
+        if nd.get("type") == "end":
+            return self.NODE_H_END
+        rules = self._wf_get_rules(nd)
+        extra = max(0, len(rules) - 1) * self.NODE_RULE_H
+        return self.NODE_H_ACTION + extra
 
     def _wf_redraw_canvas(self):
         self.wf_canvas.delete("all")
@@ -2741,7 +2810,15 @@ class PoeClipboardMakerApp:
         for nid, nd in self.wf_nodes.items():
             if nd.get("type") == "end":
                 continue
-            for port, target in [("success", nd.get("success", "")), ("failure", nd.get("failure", "")), ("max_reached", nd.get("max_reached", ""))]:
+            # 每条规则的成功连接
+            rules = self._wf_get_rules(nd)
+            for i, rule_entry in enumerate(rules):
+                target = rule_entry.get("success", "")
+                if target and target in self.wf_nodes:
+                    self._wf_draw_connection(nid, f"success_{i}", target)
+            # 失败和次数耗尽连接
+            for port in ["failure", "max_reached"]:
+                target = nd.get(port, "")
                 if target and target in self.wf_nodes:
                     self._wf_draw_connection(nid, port, target)
 
@@ -2755,7 +2832,7 @@ class PoeClipboardMakerApp:
         sx, sy = self._wf_world_to_screen(x, y)
         w = int(self.NODE_W * z)
         is_end = nd.get("type") == "end"
-        h = int((self.NODE_H_END if is_end else self.NODE_H_ACTION) * z)
+        h = int(self._wf_node_height(nd) * z)
 
         # 选中高亮
         outline = "#2196F3" if nid == self.wf_selected_node else "#333"
@@ -2791,37 +2868,41 @@ class PoeClipboardMakerApp:
         )
 
         if not is_end:
-            # 动作和规则信息
             action = nd.get("action", "-")
-            rule = nd.get("rule", "-")
+            rules = self._wf_get_rules(nd)
             info_fs = max(7, int(9 * z))
+            pr = int(self.PORT_R * z)
+
+            # 动作信息
             self.wf_canvas.create_text(
                 sx + w // 2, sy + int(36 * z),
                 text=f"动作: {action}", font=("Arial", info_fs), tags=("node", f"node_{nid}")
             )
-            self.wf_canvas.create_text(
-                sx + w // 2, sy + int(52 * z),
-                text=f"规则: {rule}", font=("Arial", info_fs), tags=("node", f"node_{nid}")
-            )
 
-            # 成功/失败/次数耗尽 端口
-            pr = int(self.PORT_R * z)
-            # 成功端口 - 右侧偏上
-            sp_x = sx + w
-            sp_y = sy + int(35 * z)
-            self.wf_canvas.create_oval(
-                sp_x - pr, sp_y - pr, sp_x + pr, sp_y + pr,
-                fill="#4CAF50", outline="#333", tags=("port", f"success_{nid}")
-            )
-            self.wf_canvas.create_text(
-                sp_x - pr - int(16 * z), sp_y,
-                text="成功", font=("Arial", max(7, int(8 * z))), fill="#4CAF50",
-                anchor="e", tags=("port_label", f"success_{nid}")
-            )
+            # 每条规则 + 对应的成功端口
+            for i, rule_entry in enumerate(rules):
+                rule_name = rule_entry.get("rule", "-")
+                ry = sy + int((52 + i * self.NODE_RULE_H) * z)
+                self.wf_canvas.create_text(
+                    sx + w // 2, ry,
+                    text=f"规则{i+1}: {rule_name}", font=("Arial", info_fs), tags=("node", f"node_{nid}")
+                )
+                # 该规则的成功端口
+                sp_x = sx + w
+                sp_y = ry
+                self.wf_canvas.create_oval(
+                    sp_x - pr, sp_y - pr, sp_x + pr, sp_y + pr,
+                    fill="#4CAF50", outline="#333", tags=("port", f"success_{nid}_{i}")
+                )
+                self.wf_canvas.create_text(
+                    sp_x - pr - int(4 * z), sp_y,
+                    text=f"✓{i+1}", font=("Arial", max(6, int(7 * z))), fill="#4CAF50",
+                    anchor="e", tags=("port_label", f"success_{nid}_{i}")
+                )
 
-            # 失败端口 - 右侧中间
+            # 失败端口 - 规则下方
+            fp_y = sy + int((52 + len(rules) * self.NODE_RULE_H) * z)
             fp_x = sx + w
-            fp_y = sy + int(60 * z)
             self.wf_canvas.create_oval(
                 fp_x - pr, fp_y - pr, fp_x + pr, fp_y + pr,
                 fill="#f44336", outline="#333", tags=("port", f"failure_{nid}")
@@ -2832,9 +2913,9 @@ class PoeClipboardMakerApp:
                 anchor="e", tags=("port_label", f"failure_{nid}")
             )
 
-            # 次数耗尽端口 - 右侧偏下
+            # 次数耗尽端口 - 失败端口下方
+            mp_y = fp_y + int(self.NODE_RULE_H * z)
             mp_x = sx + w
-            mp_y = sy + int(85 * z)
             self.wf_canvas.create_oval(
                 mp_x - pr, mp_y - pr, mp_x + pr, mp_y + pr,
                 fill="#FF9800", outline="#333", tags=("port", f"max_reached_{nid}")
@@ -2860,16 +2941,18 @@ class PoeClipboardMakerApp:
 
         # 起点：from 节点的输出端口
         fx = from_nd["x"] + self.NODE_W
-        if port == "success":
-            fy = from_nd["y"] + 35
+        rules = self._wf_get_rules(from_nd)
+        if port.startswith("success_"):
+            # success_0, success_1, ...
+            idx = int(port.split("_")[1])
+            fy = from_nd["y"] + 52 + idx * self.NODE_RULE_H
         elif port == "failure":
-            fy = from_nd["y"] + 60
+            fy = from_nd["y"] + 52 + len(rules) * self.NODE_RULE_H
         else:  # max_reached
-            fy = from_nd["y"] + 85
+            fy = from_nd["y"] + 52 + len(rules) * self.NODE_RULE_H + self.NODE_RULE_H
 
         # 终点：to 节点的输入端口
-        is_end = to_nd.get("type") == "end"
-        h = self.NODE_H_END if is_end else self.NODE_H_ACTION
+        h = self._wf_node_height(to_nd)
         tx = to_nd["x"]
         ty = to_nd["y"] + h / 2
 
@@ -2883,7 +2966,7 @@ class PoeClipboardMakerApp:
         cp2x = ftx - dx
         cp2y = fty
 
-        if port == "success":
+        if port.startswith("success_"):
             color = "#4CAF50"
         elif port == "failure":
             color = "#f44336"
@@ -2900,8 +2983,9 @@ class PoeClipboardMakerApp:
         # 连接线标签
         mx = (fsx + ftx) / 2
         my = (fsy + fty) / 2 - 10
-        if port == "success":
-            label = "成功"
+        if port.startswith("success_"):
+            idx = int(port.split("_")[1])
+            label = f"规则{idx+1}"
         elif port == "failure":
             label = "失败"
         else:
@@ -2917,8 +3001,7 @@ class PoeClipboardMakerApp:
     def _wf_find_node_at(self, wx, wy):
         for nid, nd in reversed(list(self.wf_nodes.items())):
             x, y = nd["x"], nd["y"]
-            is_end = nd.get("type") == "end"
-            h = self.NODE_H_END if is_end else self.NODE_H_ACTION
+            h = self._wf_node_height(nd)
             if x <= wx <= x + self.NODE_W and y <= wy <= y + h:
                 return nid
         return None
@@ -2930,16 +3013,18 @@ class PoeClipboardMakerApp:
             if nd.get("type") == "end":
                 continue
             x, y = nd["x"], nd["y"]
-            # 成功端口
-            sp_x, sp_y = x + self.NODE_W, y + 35
-            if abs(wx - sp_x) <= pr and abs(wy - sp_y) <= pr:
-                return nid, "success"
+            rules = self._wf_get_rules(nd)
+            # 每条规则的成功端口
+            for i in range(len(rules)):
+                sp_x, sp_y = x + self.NODE_W, y + 52 + i * self.NODE_RULE_H
+                if abs(wx - sp_x) <= pr and abs(wy - sp_y) <= pr:
+                    return nid, f"success_{i}"
             # 失败端口
-            fp_x, fp_y = x + self.NODE_W, y + 60
+            fp_x, fp_y = x + self.NODE_W, y + 52 + len(rules) * self.NODE_RULE_H
             if abs(wx - fp_x) <= pr and abs(wy - fp_y) <= pr:
                 return nid, "failure"
             # 次数耗尽端口
-            mp_x, mp_y = x + self.NODE_W, y + 85
+            mp_x, mp_y = x + self.NODE_W, y + 52 + len(rules) * self.NODE_RULE_H + self.NODE_RULE_H
             if abs(wx - mp_x) <= pr and abs(wy - mp_y) <= pr:
                 return nid, "max_reached"
         return None, None
@@ -2983,9 +3068,18 @@ class PoeClipboardMakerApp:
             target = self._wf_find_node_at(wx, wy)
             if target and target != self.wf_connecting_from:
                 nd = self.wf_nodes[self.wf_connecting_from]
-                nd[self.wf_connecting_port] = target
+                port = self.wf_connecting_port
+                if port.startswith("success_"):
+                    idx = int(port.split("_")[1])
+                    rules = self._wf_get_rules(nd)
+                    if idx < len(rules):
+                        rules[idx]["success"] = target
+                        nd["rules"] = rules
+                    port_name = f"规则{idx+1}成功"
+                else:
+                    nd[port] = target
+                    port_name = "失败" if port == "failure" else "次数耗尽"
                 self._wf_redraw_canvas()
-                port_name = "成功" if self.wf_connecting_port == "success" else "失败"
                 self._wf_append_log(f"连接: {self.wf_connecting_from} [{port_name}] → {target}")
             self.wf_connecting_from = None
             self.wf_connecting_port = None
@@ -2998,15 +3092,32 @@ class PoeClipboardMakerApp:
         self.wf_selected_node = nid
         self._wf_redraw_canvas()
 
-        self.wf_context_menu.entryconfig(0, state="normal" if nid else "disabled")
-        self.wf_context_menu.entryconfig(1, state="normal" if nid else "disabled")
-        self.wf_context_menu.entryconfig(2, state="normal" if nid else "disabled")
-        self.wf_context_menu.entryconfig(4, state="normal" if nid else "disabled")
-        self.wf_context_menu.entryconfig(6, state="normal" if nid else "disabled")
-        self.wf_context_menu.entryconfig(7, state="normal" if nid else "disabled")
-        self.wf_context_menu.entryconfig(8, state="normal" if nid else "disabled")
+        # 动态重建右键菜单
+        menu = self.wf_context_menu
+        menu.delete(0, tk.END)
 
-        self.wf_context_menu.tk_popup(event.x_root, event.y_root)
+        state = "normal" if nid else "disabled"
+        menu.add_command(label="编辑节点", command=self._wf_ctx_edit, state=state)
+        menu.add_command(label="复制节点", command=self._wf_ctx_copy, state=state)
+        menu.add_command(label="删除节点", command=self._wf_ctx_delete, state=state)
+        menu.add_separator()
+        menu.add_command(label="设为开始节点", command=self._wf_ctx_set_start, state=state)
+
+        if nid and nid in self.wf_nodes:
+            nd = self.wf_nodes[nid]
+            if nd.get("type") != "end":
+                rules = self._wf_get_rules(nd)
+                menu.add_separator()
+                for i, rule_entry in enumerate(rules):
+                    rule_name = rule_entry.get("rule", f"规则{i+1}")
+                    menu.add_command(
+                        label=f"从规则{i+1}成功端口连接 ({rule_name})",
+                        command=lambda idx=i: self._wf_ctx_connect(f"success_{idx}")
+                    )
+                menu.add_command(label="从失败端口连接", command=lambda: self._wf_ctx_connect("failure"))
+                menu.add_command(label="从次数耗尽端口连接", command=lambda: self._wf_ctx_connect("max_reached"))
+
+        menu.tk_popup(event.x_root, event.y_root)
 
     def _wf_canvas_double_click(self, event):
         wx, wy = self._wf_screen_to_world(event.x, event.y)
@@ -3071,12 +3182,19 @@ class PoeClipboardMakerApp:
         src = self.wf_nodes[self.wf_selected_node]
         self.wf_node_counter += 1
         new_id = f"node_{self.wf_node_counter}"
-        new_nd = dict(src)
+        import copy
+        new_nd = copy.deepcopy(src)
         new_nd["x"] = src["x"] + 30
         new_nd["y"] = src["y"] + 30
         new_nd["name"] = src.get("name", "") + " (副本)"
         if new_nd.get("type") != "end":
-            new_nd["success"] = ""
+            # 清空规则的成功分支，保留规则名
+            rules = self._wf_get_rules(new_nd)
+            for r in rules:
+                r["success"] = ""
+            new_nd["rules"] = rules
+            new_nd.pop("rule", None)
+            new_nd.pop("success", None)
             new_nd["failure"] = ""
             new_nd["max_reached"] = "end"
         self.wf_nodes[new_id] = new_nd
@@ -3126,8 +3244,14 @@ class PoeClipboardMakerApp:
             return
         self.wf_connecting_from = self.wf_selected_node
         self.wf_connecting_port = port
-        port_names = {"success": "成功", "failure": "失败", "max_reached": "次数耗尽"}
-        self._wf_append_log(f"请左键点击目标节点完成 {port_names.get(port, port)} 连接")
+        if port.startswith("success_"):
+            idx = int(port.split("_")[1])
+            port_name = f"规则{idx+1}成功"
+        elif port == "failure":
+            port_name = "失败"
+        else:
+            port_name = "次数耗尽"
+        self._wf_append_log(f"请左键点击目标节点完成 {port_name} 连接")
 
     # ==================== 节点编辑 ====================
 
@@ -3138,72 +3262,134 @@ class PoeClipboardMakerApp:
 
         dlg = tk.Toplevel(self.root)
         dlg.title(f"编辑节点 - {nd.get('name', nid)}")
-        dlg.geometry("420x440")
+        dlg.geometry("500x520")
         dlg.resizable(False, False)
         dlg.transient(self.root)
         dlg.grab_set()
 
         is_end = nd.get("type") == "end"
+        rule_names = get_rule_names(self.rules_data)
+        target_names = [n for n in self.wf_nodes if n != nid] + ["end"]
 
-        row = 0
-        ttk.Label(dlg, text="节点名称:").grid(row=row, column=0, sticky="w", padx=8, pady=4)
-        name_entry = ttk.Entry(dlg, width=30)
+        rule_widgets = []
+
+        # ===== 顶部：名称 + 动作 =====
+        top_frame = ttk.Frame(dlg)
+        top_frame.pack(fill="x", padx=8, pady=4)
+
+        ttk.Label(top_frame, text="节点名称:").grid(row=0, column=0, sticky="w", padx=4, pady=4)
+        name_entry = ttk.Entry(top_frame, width=34)
         name_entry.insert(0, nd.get("name", ""))
-        name_entry.grid(row=row, column=1, padx=8, pady=4)
+        name_entry.grid(row=0, column=1, sticky="we", padx=4, pady=4)
+
+        action_cb = None
+        if not is_end:
+            ttk.Label(top_frame, text="动作:").grid(row=1, column=0, sticky="w", padx=4, pady=4)
+            action_names = list(self.config.get("actions", {}).keys())
+            action_cb = ttk.Combobox(top_frame, values=action_names, state="readonly", width=32)
+            action_cb.set(nd.get("action", ""))
+            action_cb.grid(row=1, column=1, sticky="we", padx=4, pady=4)
+
+        top_frame.columnconfigure(1, weight=1)
+
+        # ===== 中部：规则列表（可动态增删） =====
+        if not is_end:
+            rule_section = ttk.LabelFrame(dlg, text="规则列表（按顺序匹配，先命中先走）")
+            rule_section.pack(fill="x", padx=8, pady=4)
+
+            rule_container = ttk.Frame(rule_section)
+            rule_container.pack(fill="x", padx=4, pady=4)
+
+            def renumber_rules():
+                for i, (f, _, _) in enumerate(rule_widgets):
+                    for child in f.winfo_children():
+                        if isinstance(child, ttk.Label) and child.cget("text").startswith("规则"):
+                            child.config(text=f"规则{i+1}:")
+
+            def add_rule_row(rule_name="", success_target=""):
+                frame = ttk.Frame(rule_container)
+                frame.pack(fill="x", pady=2)
+
+                ttk.Label(frame, text=f"规则{len(rule_widgets)+1}:").pack(side="left", padx=(0, 4))
+                rcb = ttk.Combobox(frame, values=rule_names, state="readonly", width=18)
+                rcb.set(rule_name)
+                rcb.pack(side="left", padx=2)
+
+                ttk.Label(frame, text="成功→").pack(side="left", padx=(8, 2))
+                scb = ttk.Combobox(frame, values=target_names, state="readonly", width=14)
+                scb.set(success_target)
+                scb.pack(side="left", padx=2)
+
+                def remove_this():
+                    if len(rule_widgets) <= 1:
+                        messagebox.showwarning("提示", "至少保留一条规则")
+                        return
+                    rule_widgets.remove((frame, rcb, scb))
+                    frame.destroy()
+                    renumber_rules()
+
+                ttk.Button(frame, text="×", width=3, command=remove_this).pack(side="left", padx=4)
+                rule_widgets.append((frame, rcb, scb))
+
+            # 加载已有规则
+            rules = self._wf_get_rules(nd)
+            if rules:
+                for re in rules:
+                    add_rule_row(re.get("rule", ""), re.get("success", ""))
+            else:
+                add_rule_row()
+
+            ttk.Button(rule_section, text="+ 添加规则", command=add_rule_row).pack(pady=4)
+
+        # ===== 底部：失败、最大次数、耗尽、按钮 =====
+        bottom_frame = ttk.Frame(dlg)
+        bottom_frame.pack(fill="x", padx=8, pady=4, side="bottom")
+
+        failure_cb = None
+        max_attempts_entry = None
+        max_reached_cb = None
 
         if not is_end:
-            row += 1
-            ttk.Label(dlg, text="动作:").grid(row=row, column=0, sticky="w", padx=8, pady=4)
-            action_names = list(self.config.get("actions", {}).keys())
-            action_cb = ttk.Combobox(dlg, values=action_names, state="readonly", width=28)
-            action_cb.set(nd.get("action", ""))
-            action_cb.grid(row=row, column=1, padx=8, pady=4)
-
-            row += 1
-            ttk.Label(dlg, text="匹配规则:").grid(row=row, column=0, sticky="w", padx=8, pady=4)
-            rule_names = get_rule_names(self.rules_data)
-            rule_cb = ttk.Combobox(dlg, values=rule_names, state="readonly", width=28)
-            rule_cb.set(nd.get("rule", ""))
-            rule_cb.grid(row=row, column=1, padx=8, pady=4)
-
-            row += 1
-            ttk.Label(dlg, text="成功 →").grid(row=row, column=0, sticky="w", padx=8, pady=4)
-            target_names = [n for n in self.wf_nodes if n != nid] + ["end"]
-            success_cb = ttk.Combobox(dlg, values=target_names, state="readonly", width=28)
-            success_cb.set(nd.get("success", ""))
-            success_cb.grid(row=row, column=1, padx=8, pady=4)
-
-            row += 1
-            ttk.Label(dlg, text="失败 →").grid(row=row, column=0, sticky="w", padx=8, pady=4)
-            failure_cb = ttk.Combobox(dlg, values=target_names + ["self"], state="readonly", width=28)
+            ttk.Label(bottom_frame, text="失败 →").grid(row=0, column=0, sticky="w", padx=4, pady=4)
+            failure_cb = ttk.Combobox(bottom_frame, values=target_names + ["self"], state="readonly", width=32)
             cur_failure = nd.get("failure", "")
             if cur_failure == nid:
                 cur_failure = "self"
             failure_cb.set(cur_failure)
-            failure_cb.grid(row=row, column=1, padx=8, pady=4)
+            failure_cb.grid(row=0, column=1, sticky="we", padx=4, pady=4)
 
-            row += 1
-            ttk.Label(dlg, text="最大动作次数:").grid(row=row, column=0, sticky="w", padx=8, pady=4)
-            max_attempts_entry = ttk.Entry(dlg, width=30)
+            ttk.Label(bottom_frame, text="最大动作次数:").grid(row=1, column=0, sticky="w", padx=4, pady=4)
+            max_attempts_entry = ttk.Entry(bottom_frame, width=34)
             max_attempts_entry.insert(0, str(nd.get("max_attempts", 9999)))
-            max_attempts_entry.grid(row=row, column=1, padx=8, pady=4)
+            max_attempts_entry.grid(row=1, column=1, sticky="we", padx=4, pady=4)
 
-            row += 1
-            ttk.Label(dlg, text="次数耗尽 →").grid(row=row, column=0, sticky="w", padx=8, pady=4)
-            max_reached_cb = ttk.Combobox(dlg, values=target_names + ["self"], state="readonly", width=28)
+            ttk.Label(bottom_frame, text="次数耗尽 →").grid(row=2, column=0, sticky="w", padx=4, pady=4)
+            max_reached_cb = ttk.Combobox(bottom_frame, values=target_names + ["self"], state="readonly", width=32)
             cur_max_reached = nd.get("max_reached", "end")
             if cur_max_reached == nid:
                 cur_max_reached = "self"
             max_reached_cb.set(cur_max_reached)
-            max_reached_cb.grid(row=row, column=1, padx=8, pady=4)
+            max_reached_cb.grid(row=2, column=1, sticky="we", padx=4, pady=4)
+
+            bottom_frame.columnconfigure(1, weight=1)
+
+        # 确定/取消按钮
+        btn_frame = ttk.Frame(dlg)
+        btn_frame.pack(side="bottom", pady=8)
 
         def on_ok():
             nd["name"] = name_entry.get().strip() or nid
             if not is_end:
                 nd["action"] = action_cb.get().strip()
-                nd["rule"] = rule_cb.get().strip()
-                sv = success_cb.get().strip()
-                nd["success"] = sv if sv != "end" else "end"
+                new_rules = []
+                for _, rcb, scb in rule_widgets:
+                    r = rcb.get().strip()
+                    s = scb.get().strip()
+                    new_rules.append({"rule": r, "success": s if s != "end" else "end"})
+                nd["rules"] = new_rules
+                nd.pop("rule", None)
+                nd.pop("success", None)
+
                 fv = failure_cb.get().strip()
                 if fv == "self":
                     nd["failure"] = nid
@@ -3225,8 +3411,6 @@ class PoeClipboardMakerApp:
             self._wf_redraw_canvas()
             dlg.destroy()
 
-        btn_frame = ttk.Frame(dlg)
-        btn_frame.grid(row=row + 1, column=0, columnspan=2, pady=12)
         ttk.Button(btn_frame, text="确定", command=on_ok, width=10).pack(side="left", padx=8)
         ttk.Button(btn_frame, text="取消", command=dlg.destroy, width=10).pack(side="left", padx=8)
 
@@ -3255,8 +3439,7 @@ class PoeClipboardMakerApp:
         self.wf_nodes[nid] = {
             "name": f"节点{self.wf_node_counter}",
             "action": action_names[0] if action_names else "",
-            "rule": rule_names[0] if rule_names else "",
-            "success": "",
+            "rules": [{"rule": rule_names[0] if rule_names else "", "success": ""}],
             "failure": "",
             "max_attempts": 9999,
             "max_reached": "end",
@@ -3362,15 +3545,18 @@ class PoeClipboardMakerApp:
             if action and action not in action_names:
                 errors.append(f"节点「{name}」引用的动作「{action}」不存在。")
 
-            # 检查 rule 引用
-            rule = nd.get("rule", "")
-            if rule and rule not in rule_names:
-                errors.append(f"节点「{name}」引用的规则「{rule}」不存在。")
-
-            # 检查 success 目标
-            success = nd.get("success", "")
-            if success and success != "end" and success not in self.wf_nodes:
-                errors.append(f"节点「{name}」的成功分支指向不存在的节点「{success}」。")
+            # 检查规则列表
+            rules = self._wf_get_rules(nd)
+            has_success_target = False
+            for i, rule_entry in enumerate(rules):
+                rule = rule_entry.get("rule", "")
+                if rule and rule not in rule_names:
+                    errors.append(f"节点「{name}」的规则{i+1}「{rule}」不存在。")
+                success = rule_entry.get("success", "")
+                if success and success != "end" and success not in self.wf_nodes:
+                    errors.append(f"节点「{name}」的规则{i+1}成功分支指向不存在的节点「{success}」。")
+                if success:
+                    has_success_target = True
 
             # 检查 failure 目标
             failure = nd.get("failure", "")
@@ -3383,16 +3569,24 @@ class PoeClipboardMakerApp:
                 errors.append(f"节点「{name}」的次数耗尽分支指向不存在的节点「{max_reached}」。")
 
             # 检查是否有出口
-            if not success and not failure:
-                errors.append(f"节点「{name}」没有设置任何出口（成功/失败分支均为空）。")
+            if not has_success_target and not failure:
+                errors.append(f"节点「{name}」没有设置任何出口（规则成功分支和失败分支均为空）。")
 
         # 检查是否有结束节点
         has_end = any(nd.get("type") == "end" for nd in self.wf_nodes.values())
-        has_end_ref = any(
-            nd.get("success") == "end" or nd.get("failure") == "end" or nd.get("max_reached") == "end"
-            for nd in self.wf_nodes.values()
-            if nd.get("type") != "end"
-        )
+        has_end_ref = False
+        for nd in self.wf_nodes.values():
+            if nd.get("type") == "end":
+                continue
+            if nd.get("failure") == "end" or nd.get("max_reached") == "end":
+                has_end_ref = True
+                break
+            for r in self._wf_get_rules(nd):
+                if r.get("success") == "end":
+                    has_end_ref = True
+                    break
+            if has_end_ref:
+                break
         if not has_end and not has_end_ref:
             errors.append("流程中没有结束节点，也没有任何节点指向结束。")
 
@@ -3408,7 +3602,10 @@ class PoeClipboardMakerApp:
                 cnd = self.wf_nodes.get(cur, {})
                 if cnd.get("type") == "end":
                     continue
-                for target in [cnd.get("success", ""), cnd.get("failure", ""), cnd.get("max_reached", "")]:
+                targets = [cnd.get("failure", ""), cnd.get("max_reached", "")]
+                for r in self._wf_get_rules(cnd):
+                    targets.append(r.get("success", ""))
+                for target in targets:
                     if target and target != "end" and target in self.wf_nodes and target not in reachable:
                         queue_bfs.append(target)
 
@@ -3463,13 +3660,13 @@ class PoeClipboardMakerApp:
             node_exec_count = {}
 
             copy_hotkey = self.config.get("copy_hotkey", DEFAULT_CONFIG["copy_hotkey"])
-            copy_timeout = float(self.config.get("copy_timeout", 0.6))
+            copy_timeout = float(self.config.get("copy_timeout", 0.067))
             copy_poll_interval = float(self.config.get("copy_poll_interval", 0.005))
             copy_retry = int(self.config.get("copy_retry", 3))
             copy_backend = self.config.get("copy_backend", "keyboard")
             pre_copy_delay = float(self.config.get("pre_copy_delay", 0.02))
-            post_action_delay = float(self.config.get("post_action_delay", 0.08))
-            post_drop_delay = float(self.config.get("post_drop_delay", 0.08))
+            post_action_delay = float(self.config.get("post_action_delay", 0.034))
+            post_drop_delay = float(self.config.get("post_drop_delay", 0.034))
 
             while self.is_running() and current and current != "end":
                 nd = self.wf_nodes.get(current)
@@ -3486,7 +3683,7 @@ class PoeClipboardMakerApp:
                 max_attempts = int(nd.get("max_attempts", 9999))
                 node_name = nd.get("name", current)
                 action_name = nd.get("action", "")
-                rule_name = nd.get("rule", "")
+                rules = self._wf_get_rules(nd)
 
                 # 检查是否超过该节点的最大次数
                 if node_exec_count[current] > max_attempts:
@@ -3508,12 +3705,13 @@ class PoeClipboardMakerApp:
                     if post_action_delay > 0:
                         time.sleep(post_action_delay)
 
-                # 读取剪贴板并匹配
-                if rule_name:
-                    rule = self.rules_data.get(rule_name, {})
-                    if not rule:
-                        self.ui_queue.put(("log", f"  规则不存在: {rule_name}，跳过匹配"))
-                        current = nd.get("success", "end")
+                # 读取剪贴板并按顺序匹配规则
+                if rules:
+                    # 收集所有需要匹配的规则名称
+                    rule_names_to_check = [r.get("rule", "") for r in rules if r.get("rule")]
+                    if not rule_names_to_check:
+                        # 没有有效规则，走失败分支
+                        current = nd.get("failure", "end")
                         continue
 
                     if pre_copy_delay > 0:
@@ -3549,16 +3747,33 @@ class PoeClipboardMakerApp:
                         current = nd.get("failure", "end")
                         continue
 
-                    result = match_rules(clipboard_text, rule)
-                    if result["success"]:
-                        self.ui_queue.put(("log", f"  匹配成功: 蓝色 {result['blue_count']}/{result['min_blue_match']}"))
-                        current = nd.get("success", "end")
-                    else:
-                        self.ui_queue.put(("log", f"  匹配失败: 蓝色 {result['blue_count']}/{result['min_blue_match']}，红色缺失={result['red_missing']}"))
+                    # 按顺序匹配规则，先命中先走
+                    matched = False
+                    for i, rule_entry in enumerate(rules):
+                        rule_name = rule_entry.get("rule", "")
+                        if not rule_name:
+                            continue
+                        rule = self.rules_data.get(rule_name, {})
+                        if not rule:
+                            self.ui_queue.put(("log", f"  规则不存在: {rule_name}，跳过"))
+                            continue
+                        result = match_rules(clipboard_text, rule)
+                        if result["success"]:
+                            affix_log = f"，词缀 {result['affix_count']}/{result['affix_count_target']}" if result['affix_count_enabled'] else ""
+                            self.ui_queue.put(("log", f"  规则{i+1}「{rule_name}」匹配成功: 蓝色 {result['blue_count']}/{result['min_blue_match']}{affix_log}"))
+                            current = rule_entry.get("success", "end")
+                            matched = True
+                            break
+                        else:
+                            affix_log = f"，词缀 {result['affix_count']}/{result['affix_count_target']}" if result['affix_count_enabled'] else ""
+                            self.ui_queue.put(("log", f"  规则{i+1}「{rule_name}」匹配失败: 蓝色 {result['blue_count']}/{result['min_blue_match']}，红色缺失={result['red_missing']}{affix_log}"))
+
+                    if not matched:
+                        self.ui_queue.put(("log", f"  所有规则均未匹配，走失败分支"))
                         current = nd.get("failure", "end")
                 else:
-                    # 没有规则，直接走成功分支
-                    current = nd.get("success", "end")
+                    # 没有规则，直接走失败分支
+                    current = nd.get("failure", "end")
 
             if current == "end":
                 self.ui_queue.put(("log", "流程正常结束"))
@@ -3577,8 +3792,7 @@ class PoeClipboardMakerApp:
         if nid in self.wf_nodes:
             nd = self.wf_nodes[nid]
             x, y = nd["x"], nd["y"]
-            is_end = nd.get("type") == "end"
-            h = self.NODE_H_END if is_end else self.NODE_H_ACTION
+            h = self._wf_node_height(nd)
             sx, sy = self._wf_world_to_screen(x, y)
             w = int(self.NODE_W * self.wf_zoom_level)
             hh = int(h * self.wf_zoom_level)

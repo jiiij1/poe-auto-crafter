@@ -1,10 +1,27 @@
 {
-  "__selected_workflow__": "测试流程",
+  "__selected_workflow__": "新流程_2",
   "workflows": {
     "新流程_2": {
-      "start_node": "",
-      "max_node_exec": 200,
-      "nodes": {}
+      "start_node": "node_1",
+      "nodes": {
+        "node_1": {
+          "x": 248.0,
+          "y": 280.0,
+          "name": "节点1",
+          "action": "测试混沌",
+          "rule": "测试规则3",
+          "success": "node_2",
+          "failure": "node_1",
+          "max_attempts": 9999,
+          "max_reached": "end"
+        },
+        "node_2": {
+          "x": 642.0,
+          "y": 279.0,
+          "type": "end",
+          "name": "结束"
+        }
+      }
     },
     "测试流程": {
       "start_node": "node_1",

@@ -51,11 +51,11 @@
     "name": "测试规则2"
   },
   "测试规则3": {
-    "blue_rules": [],
-    "red_rules": [
-      "闪电"
+    "blue_rules": [
+      "法杖"
     ],
-    "min_blue_match": 0,
+    "red_rules": [],
+    "min_blue_match": 1,
     "max_attempts": 200,
     "action_name": "测试混沌",
     "dry_run": false,
@@ -64,6 +64,8 @@
       "shift",
       "c"
     ],
+    "affix_count_enabled": true,
+    "affix_count": 5,
     "name": "测试规则3"
   }
 }

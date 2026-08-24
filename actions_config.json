@@ -11,28 +11,30 @@
       {
         "type": "moveTo",
         "x": 110,
-        "y": 270
+        "y": 270,
+        "duration": 0
+      },
+      {
+        "type": "sleep",
+        "time": 0.01
       },
       {
         "type": "click",
         "button": "right"
       },
       {
-        "type": "sleep",
-        "time": 0.034
-      },
-      {
         "type": "moveTo",
         "x": 330,
-        "y": 440
+        "y": 440,
+        "duration": 0
+      },
+      {
+        "type": "sleep",
+        "time": 0.01
       },
       {
         "type": "click",
         "button": "left"
-      },
-      {
-        "type": "sleep",
-        "time": 0.034
       }
     ],
     "重铸点金": [
