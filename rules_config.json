@@ -1,10 +1,10 @@
 {
-  "__selected_rule__": "测试规则3",
+  "__selected_rule__": "默认规则",
   "默认规则": {
     "blue_rules": [
-      "导师",
+      "雷手",
       "塑焰",
-      "雷手的"
+      "导师"
     ],
     "red_rules": [],
     "min_blue_match": 1,
@@ -16,6 +16,8 @@
       "shift",
       "c"
     ],
+    "affix_count_enabled": false,
+    "affix_count": 3,
     "name": "默认规则"
   },
   "测试规则1": {
@@ -65,7 +67,7 @@
       "c"
     ],
     "affix_count_enabled": true,
-    "affix_count": 5,
+    "affix_count": 3,
     "name": "测试规则3"
   }
 }
