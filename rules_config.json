@@ -2,9 +2,150 @@
   "__selected_rule__": "默认规则",
   "默认规则": {
     "blue_rules": [
-      "雷手",
-      "塑焰",
-      "导师"
+      "原初"
+    ],
+    "red_rules": [],
+    "min_blue_match": 1,
+    "max_attempts": 20000,
+    "action_name": "重铸点金",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "c"
+    ],
+    "affix_count_enabled": false,
+    "affix_count": 2,
+    "prefix_count_enabled": false,
+    "prefix_count": 0,
+    "suffix_count_enabled": false,
+    "suffix_count": 0,
+    "name": "默认规则"
+  },
+  "必定成功": {
+    "blue_rules": [],
+    "red_rules": [
+      ":"
+    ],
+    "min_blue_match": 0,
+    "max_attempts": 20000,
+    "action_name": "点击",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "c"
+    ],
+    "affix_count_enabled": false,
+    "affix_count": 2,
+    "prefix_count_enabled": false,
+    "prefix_count": 1,
+    "suffix_count_enabled": false,
+    "suffix_count": 1,
+    "name": "必定成功"
+  },
+  "必定失败": {
+    "blue_rules": [],
+    "red_rules": [
+      "习近平"
+    ],
+    "min_blue_match": 0,
+    "max_attempts": 20000,
+    "action_name": "点击",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "c"
+    ],
+    "affix_count_enabled": false,
+    "affix_count": 2,
+    "name": "必定失败"
+  },
+  "空": {
+    "blue_rules": [],
+    "red_rules": [],
+    "min_blue_match": 0,
+    "max_attempts": 20000,
+    "action_name": "改造准备",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "c"
+    ],
+    "affix_count_enabled": false,
+    "affix_count": 2,
+    "name": "空"
+  },
+  "长杖2词": {
+    "blue_rules": [
+      "歌石者的",
+      "分裂者的",
+      "执政官的",
+      "锋芒的",
+      "放血之",
+      "溶解之"
+    ],
+    "red_rules": [],
+    "min_blue_match": 1,
+    "max_attempts": 20000,
+    "action_name": "重铸点金",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "c"
+    ],
+    "affix_count_enabled": true,
+    "affix_count": 2,
+    "prefix_count_enabled": false,
+    "prefix_count": 0,
+    "suffix_count_enabled": false,
+    "suffix_count": 0,
+    "name": "长杖2词"
+  },
+  "长杖1词": {
+    "blue_rules": [
+      "歌石者的",
+      "分裂者的",
+      "执政官的",
+      "锋芒的",
+      "放血之",
+      "溶解之"
+    ],
+    "red_rules": [],
+    "min_blue_match": 1,
+    "max_attempts": 20000,
+    "action_name": "重铸点金",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "c"
+    ],
+    "affix_count_enabled": true,
+    "affix_count": 1,
+    "prefix_count_enabled": false,
+    "prefix_count": 0,
+    "suffix_count_enabled": false,
+    "suffix_count": 0,
+    "name": "长杖1词"
+  },
+  "1词测试": {
+    "blue_rules": [
+      ":"
+    ],
+    "red_rules": [],
+    "min_blue_match": 1,
+    "max_attempts": 20000,
+    "action_name": "重铸点金",
+    "dry_run": false,
+    "copy_hotkey": [
+      "ctrl",
+      "c"
+    ],
+    "affix_count_enabled": true,
+    "affix_count": 1,
+    "name": "1词测试"
+  },
+  "2词测试": {
+    "blue_rules": [
+      ":"
     ],
     "red_rules": [],
     "min_blue_match": 1,
@@ -13,61 +154,59 @@
     "dry_run": false,
     "copy_hotkey": [
       "ctrl",
-      "shift",
       "c"
     ],
-    "affix_count_enabled": false,
-    "affix_count": 3,
-    "name": "默认规则"
+    "affix_count_enabled": true,
+    "affix_count": 2,
+    "name": "2词测试"
   },
-  "测试规则1": {
+  "长杖": {
     "blue_rules": [
-      "暴击伤害"
+      "歌石者的",
+      "分裂者的",
+      "执政官的",
+      "锋芒的",
+      "放血之",
+      "溶解之"
     ],
     "red_rules": [],
     "min_blue_match": 1,
-    "max_attempts": 200,
-    "action_name": "改造",
-    "dry_run": false,
-    "copy_hotkey": [
-      "ctrl",
-      "shift",
-      "c"
-    ],
-    "name": "测试规则1"
-  },
-  "测试规则2": {
-    "blue_rules": [
-      "火焰"
-    ],
-    "red_rules": [],
-    "min_blue_match": 1,
-    "max_attempts": 200,
+    "max_attempts": 20000,
     "action_name": "重铸点金",
     "dry_run": false,
     "copy_hotkey": [
       "ctrl",
-      "shift",
       "c"
     ],
-    "name": "测试规则2"
+    "affix_count_enabled": false,
+    "affix_count": 2,
+    "prefix_count_enabled": false,
+    "prefix_count": 0,
+    "suffix_count_enabled": false,
+    "suffix_count": 0,
+    "name": "长杖"
   },
-  "测试规则3": {
+  "护盾衣服": {
     "blue_rules": [
-      "法杖"
+      "稳步坚决的",
+      "灿烂的",
+      "六翼天使"
     ],
     "red_rules": [],
     "min_blue_match": 1,
-    "max_attempts": 200,
-    "action_name": "测试混沌",
+    "max_attempts": 20000,
+    "action_name": "点击",
     "dry_run": false,
     "copy_hotkey": [
       "ctrl",
-      "shift",
       "c"
     ],
-    "affix_count_enabled": true,
-    "affix_count": 3,
-    "name": "测试规则3"
+    "affix_count_enabled": false,
+    "affix_count": 1,
+    "prefix_count_enabled": false,
+    "prefix_count": 0,
+    "suffix_count_enabled": false,
+    "suffix_count": 0,
+    "name": "护盾衣服"
   }
 }

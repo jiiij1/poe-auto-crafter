@@ -1,76 +1,149 @@
 {
-  "__selected_workflow__": "新流程",
+  "__selected_workflow__": "改造流程",
   "workflows": {
-    "测试流程": {
+    "改造流程": {
       "start_node": "node_1",
       "nodes": {
         "node_1": {
-          "x": 140.0,
-          "y": 48.0,
           "name": "节点1",
-          "action": "改造",
-          "rule": "测试规则1",
-          "success": "node_2",
-          "failure": "node_1",
-          "max_attempts": 9999,
-          "max_reached": "end"
-        },
-        "node_2": {
-          "x": 178.0,
-          "y": 224.0,
-          "name": "节点2",
-          "action": "重铸点金",
-          "rule": "测试规则2",
-          "success": "node_3",
-          "failure": "node_2",
-          "max_attempts": 9999,
-          "max_reached": "end"
-        },
-        "node_3": {
-          "x": 202.0,
-          "y": 404.0,
-          "name": "节点3",
-          "action": "测试混沌",
-          "rule": "测试规则3",
-          "success": "end",
-          "failure": "node_1",
-          "max_attempts": 9999,
-          "max_reached": "end"
-        }
-      }
-    },
-    "新流程": {
-      "start_node": "node_1",
-      "nodes": {
-        "node_1": {
-          "x": 234.0,
-          "y": 294.0,
-          "name": "节点1",
-          "action": "改造",
+          "action": "改造准备",
           "rules": [
             {
-              "rule": "默认规则",
+              "rule": "必定成功",
               "success": "node_2"
-            }
-          ],
-          "failure": "node_1",
-          "max_attempts": 9999,
-          "max_reached": "end"
-        },
-        "node_2": {
-          "x": 540.0,
-          "y": 310.0,
-          "name": "节点2",
-          "action": "富豪",
-          "rules": [
-            {
-              "rule": "测试规则3",
-              "success": "end"
             }
           ],
           "failure": "end",
           "max_attempts": 9999,
-          "max_reached": "end"
+          "max_reached": "end",
+          "x": 29.74399999999997,
+          "y": 104.27999999999992
+        },
+        "node_2": {
+          "name": "点击改造",
+          "action": "点击",
+          "rules": [
+            {
+              "rule": "默认规则",
+              "success": "node_4"
+            }
+          ],
+          "failure": "node_2",
+          "max_attempts": 9999,
+          "max_reached": "end",
+          "x": 256.36400000000003,
+          "y": 200.39199999999988
+        },
+        "node_4": {
+          "name": "节点3",
+          "action": "释放shift",
+          "rules": [
+            {
+              "rule": "空",
+              "success": "node_6"
+            }
+          ],
+          "failure": "end",
+          "max_attempts": 9999,
+          "max_reached": "end",
+          "x": 524.2520000000001,
+          "y": 234.29399999999993
+        },
+        "node_6": {
+          "type": "end",
+          "name": "结束",
+          "x": 798.8630000000002,
+          "y": 343.6060000000001
+        }
+      }
+    },
+    "改造剥离": {
+      "start_node": "node_1",
+      "nodes": {
+        "node_1": {
+          "name": "节点1",
+          "action": "改造准备",
+          "rules": [
+            {
+              "rule": "必定成功",
+              "success": "node_2"
+            }
+          ],
+          "failure": "end",
+          "max_attempts": 9999,
+          "max_reached": "end",
+          "x": -65.66751560685749,
+          "y": 337.42568677002913
+        },
+        "node_2": {
+          "name": "点击改造",
+          "action": "点击",
+          "rules": [
+            {
+              "rule": "长杖2词",
+              "success": "node_7"
+            },
+            {
+              "rule": "长杖1词",
+              "success": "node_4"
+            }
+          ],
+          "failure": "node_2",
+          "max_attempts": 9999,
+          "max_reached": "end",
+          "x": 182.364,
+          "y": 238.39199999999988
+        },
+        "node_4": {
+          "name": "节点3",
+          "action": "释放shift",
+          "rules": [
+            {
+              "rule": "空",
+              "success": "node_6"
+            }
+          ],
+          "failure": "end",
+          "max_attempts": 9999,
+          "max_reached": "end",
+          "x": 490.25200000000007,
+          "y": 240.29399999999993
+        },
+        "node_5": {
+          "name": "节点5",
+          "action": "剥离",
+          "rules": [
+            {
+              "rule": "长杖1词",
+              "success": "node_6"
+            }
+          ],
+          "failure": "node_1",
+          "max_attempts": 9999,
+          "max_reached": "end",
+          "x": 494.308,
+          "y": 480.914
+        },
+        "node_6": {
+          "type": "end",
+          "name": "结束",
+          "x": 768.8630000000002,
+          "y": 431.6060000000001
+        },
+        "node_7": {
+          "name": "节点3 (副本)",
+          "action": "释放shift",
+          "rules": [
+            {
+              "rule": "空",
+              "success": "node_5"
+            }
+          ],
+          "failure": "end",
+          "max_attempts": 9999,
+          "max_reached": "end",
+          "x": 228.97927272727281,
+          "y": 460.29399999999987
         }
       }
     }
